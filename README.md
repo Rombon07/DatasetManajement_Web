@@ -49,3 +49,8 @@ Web aplikasi manajemen dataset berbasis Django + Bootstrap 5 yang memungkinkan p
    ```bash
    git clone https://github.com/username/dataset-management.git
    cd dataset-management
+   pip install pandas
+   pip install matplotlib
+   pip install pyplot
+   pip install xhtml2pdf
+
