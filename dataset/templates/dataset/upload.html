@@ -1,0 +1,151 @@
+{% extends "dataset/base.html" %}
+{% load widget_tweaks %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-center">Upload Dataset</h2>
+    <form method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="mb-3">
+            <label class="form-label fw-semibold" for="id_name">Nama Dataset</label>
+            {{ form.name|add_class:"form-control" }}
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label fw-semibold" for="id_description">Deskripsi</label>
+            {{ form.description|add_class:"form-control" }}
+        </div>
+
+        <div class="mb-4">
+            <label class="form-label fw-semibold">Cover Image</label>
+            <div class="btn-group mb-2 w-100" role="group">
+                <button type="button" class="btn btn-outline-primary" onclick="showUpload()">📁 Upload File</button>
+                <button type="button" class="btn btn-outline-success" onclick="showCamera()">📷 Ambil Foto</button>
+            </div>
+
+            <!-- Upload File -->
+            <div id="upload-section">
+                <input type="file" accept="image/*" name="cover_image" id="id_cover_image" class="form-control">
+            </div>
+
+            <!-- Ambil Foto -->
+            <div id="camera-section" class="text-center mt-3" style="display: none;">
+                <video id="camera" width="100%" class="rounded shadow-sm mb-2" autoplay playsinline></video><br>
+                <button type="button" class="btn btn-sm btn-success mb-2" onclick="capturePhoto()">📸 Ambil Foto</button>
+                <input type="hidden" name="captured_image" id="captured_image">
+                <canvas id="canvas" style="display: none;"></canvas>
+            </div>
+
+            <!-- Preview -->
+            <img id="cover-preview" class="img-thumbnail mt-3" style="max-height: 200px; display: none;">
+        </div>
+
+        <div class="mb-4">
+            <label class="form-label fw-semibold" for="id_data_file">File Dataset (.CSV)</label>
+            {{ form.data_file|add_class:"form-control" }}
+            <div class="table-responsive mt-3" style="display:none;" id="csvPreviewContainer">
+                <h6 class="fw-bold mb-2">Preview Isi Dataset:</h6>
+                <table class="table table-sm table-bordered table-striped" id="csvPreviewTable"></table>
+            </div>
+        </div>
+
+        <div class="d-grid">
+            <button type="submit" class="btn btn-primary btn-lg rounded-pill">Upload Dataset</button>
+        </div>
+    </form>
+</div>
+
+<script>
+// Toggle upload dan kamera
+function showUpload() {
+    document.getElementById('upload-section').style.display = 'block';
+    document.getElementById('camera-section').style.display = 'none';
+    stopCamera();
+}
+
+function showCamera() {
+    document.getElementById('upload-section').style.display = 'none';
+    document.getElementById('camera-section').style.display = 'block';
+
+    navigator.mediaDevices.getUserMedia({ video: true })
+        .then(function(stream) {
+            const video = document.getElementById('camera');
+            video.srcObject = stream;
+            video.play();
+            window.localStream = stream;
+        })
+        .catch(function(err) {
+            alert("Tidak dapat mengakses kamera: " + err);
+        });
+}
+
+function stopCamera() {
+    if (window.localStream) {
+        window.localStream.getTracks().forEach(track => track.stop());
+    }
+}
+
+function capturePhoto() {
+    const video = document.getElementById('camera');
+    const canvas = document.getElementById('canvas');
+    const preview = document.getElementById('cover-preview');
+
+    const context = canvas.getContext('2d');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const dataUrl = canvas.toDataURL("image/jpeg");
+    document.getElementById("captured_image").value = dataUrl;
+
+    preview.src = dataUrl;
+    preview.style.display = "block";
+
+    stopCamera();
+}
+
+// Preview Gambar dari File Upload
+document.getElementById("id_cover_image").addEventListener("change", function(event) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const img = document.getElementById("cover-preview");
+        img.src = e.target.result;
+        img.style.display = "block";
+    };
+    reader.readAsDataURL(event.target.files[0]);
+});
+
+// Preview CSV
+document.getElementById("id_data_file").addEventListener("change", function(event) {
+    const file = event.target.files[0];
+    if (!file.name.endsWith(".csv") && !file.name.endsWith(".xlsx")) {
+        alert("Hanya file CSV yang didukung.");
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const lines = e.target.result.split("\n").slice(0, 10); // max 10 baris
+        const table = document.getElementById("csvPreviewTable");
+        const container = document.getElementById("csvPreviewContainer");
+        table.innerHTML = "";
+
+        lines.forEach((line, index) => {
+            const row = document.createElement("tr");
+            const cells = line.split(",");
+
+            cells.forEach(cell => {
+                const cellElement = document.createElement(index === 0 ? "th" : "td");
+                cellElement.textContent = cell.trim();
+                row.appendChild(cellElement);
+            });
+
+            table.appendChild(row);
+        });
+
+        container.style.display = "block";
+    };
+    reader.readAsText(file);
+});
+</script>
+{% endblock %}
